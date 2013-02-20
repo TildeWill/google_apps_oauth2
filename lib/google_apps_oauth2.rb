@@ -1,0 +1,7 @@
+require 'google_apps_oauth2/parsers/feed_parser'
+require 'google_apps_oauth2/transport'
+require 'google_apps_oauth2/atom/atom'
+require 'google_apps_oauth2/atom/node'
+require 'google_apps_oauth2/atom/document'
+require 'google_apps_oauth2/atom/feed'
+require 'google_apps_oauth2/atom/user'
