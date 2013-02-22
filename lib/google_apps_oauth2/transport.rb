@@ -9,13 +9,13 @@ module GoogleAppsOauth2
 
     parser GoogleAppsOauth2::Parsers::FeedParser
 
-    attr_reader :domain, :token
-
     base_uri 'https://apps-apis.google.com/a/feeds'
 
     def initialize(options)
       @domain = options[:domain]
       @token = options[:token]
+      @client_id = options[:client_id]
+      @client_secret = options[:client_secret]
       @refresh_token = options[:refresh_token]
       @token_changed_callback = options[:token_changed_callback]
 
@@ -23,46 +23,34 @@ module GoogleAppsOauth2
     end
 
     def get_users(options = {})
-      #limit = options[:limit] || 1000000
-      #response = get(user + "?startUsername=#{options[:start]}")
-      headers = {'content-type' =>'application/atom+xml', 'Authorization' => "OAuth #{token}"}
+      headers = {'content-type' => 'application/atom+xml', 'Authorization' => "OAuth #{token}"}
 
-      self.class.get(user_path + "?startUsername=#{options[:start]}", headers: headers)
-      #pages = fetch_pages(response, limit, :feed)
-      #
-      #return_all(pages)
+      url = user_path + "?startUsername=#{options[:start]}"
+      response = self.class.get(url, headers: headers)
+      response = check_for_refresh(response)
+
+      response
     end
 
     private
     attr_reader :user_path
+    attr_reader :domain, :token, :refresh_token, :client_id, :client_secret
 
-    def create_doc(response_body, type = nil)
-      @doc_handler.create_doc(response_body, type)
-    end
-
-    def return_all(pages)
-      pages.map do |page|
-        page.items
+    def check_for_refresh(old_response)
+      response = old_response
+      if old_response.code == 401
+        data = {
+            :client_id => @client_id,
+            :client_secret => @client_secret,
+            :refresh_token => refresh_token,
+            :grant_type => "refresh_token"
+        }
+        response_json = MultiJson.load(self.class.post("https://accounts.google.com/o/oauth2/token", :body => data))
+        @token = response_json["access_token"]
+        headers = old_response.request.options[:headers].merge("Authorization" => "OAuth #{token}")
+        response = self.class.get(old_response.request.uri.to_s, headers: headers)
       end
-    end
-
-    def get_next_page(next_page_url, type)
-      response = get(next_page_url)
-      process_response(response)
-      GoogleApps::Atom.feed(response.body)
-    end
-
-    def fetch_pages(response, limit, type)
-      pages = [GoogleApps::Atom.feed(response.body)]
-
-      while (pages.last.next_page) and (pages.count * PAGE_SIZE[:user] < limit)
-        pages << get_next_page(pages.last.next_page, type)
-      end
-      pages
-    end
-
-    def singularize(type)
-      type.to_s.gsub(/s$/, '')
+      response
     end
   end
 end
