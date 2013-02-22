@@ -11,13 +11,13 @@ module GoogleAppsOauth2
 
     base_uri 'https://apps-apis.google.com/a/feeds'
 
-    def initialize(options)
+    def initialize(options, &block)
       @domain = options[:domain]
       @token = options[:token]
       @client_id = options[:client_id]
       @client_secret = options[:client_secret]
       @refresh_token = options[:refresh_token]
-      @token_changed_callback = options[:token_changed_callback]
+      @token_changed_block = block
 
       @user_path= "/#{@domain}/user/2.0"
     end
@@ -47,6 +47,7 @@ module GoogleAppsOauth2
         }
         response_json = MultiJson.load(self.class.post("https://accounts.google.com/o/oauth2/token", :body => data))
         @token = response_json["access_token"]
+        @token_changed_block.call(@token)
         headers = old_response.request.options[:headers].merge("Authorization" => "OAuth #{token}")
         response = self.class.get(old_response.request.uri.to_s, headers: headers)
       end
