@@ -3,3 +3,4 @@ notes.md
 spec/credentials.yaml
 .DS_Store
 .rvmrc
+.gem
